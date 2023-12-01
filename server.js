@@ -10,6 +10,7 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
     });
 };
 Object.defineProperty(exports, "__esModule", { value: true });
+const Database_1 = require("./src/classes/Database");
 //#region MODULOS REQUERIDOS
 const express = require('express');
 const mysql = require('mysql');
@@ -48,6 +49,7 @@ const upload = multer({
 // })
 //#endregion
 //#region RUTAS
+// raiz
 app.get('/', (request, response) => {
     const title = "<h1>TEST_API</h1>";
     const method = "<h2>Método [GET]</h2>";
@@ -57,95 +59,50 @@ app.get('/', (request, response) => {
 });
 // traer todos
 app.get('/autos', (request, response) => __awaiter(void 0, void 0, void 0, function* () {
-    request.getConnection((err, connection) => {
-        if (err) {
-            throw ('Error en la conexión');
-        }
-        connection.query('SELECT * FROM autos', (err, results) => {
-            if (err) {
-                throw ('Error en la consulta');
-            }
-            response.send(JSON.stringify(results));
-        });
-    });
+    const db = new Database_1.Database(request.getConnection);
+    try {
+        const results = yield db.TraerTodos();
+        response.send(JSON.stringify(results));
+    }
+    catch (err) {
+        response.send(err);
+    }
 }));
 // traer uno
-app.get('/autos/:id', (request, response) => {
-    request.getConnection((err, connection) => {
-        const id = request.params.id;
-        if (err) {
-            throw ('Error en la conexión');
-        }
-        connection.query('SELECT * FROM autos WHERE id = ?', id, (err, responseults) => {
-            if (err) {
-                throw ('Error en la consulta');
-            }
-            response.send(JSON.stringify(responseults));
-        });
-    });
-});
+app.get('/autos/:id', (request, response) => __awaiter(void 0, void 0, void 0, function* () {
+    const db = new Database_1.Database(request.getConnection);
+    const id = request.params.id;
+    try {
+        const result = yield db.TraerUno(id);
+        response.send(JSON.stringify(result));
+    }
+    catch (err) {
+        response.send(err);
+    }
+}));
 // agregar
-app.post('/autos', upload.single('foto'), (request, response) => {
+app.post('/autos', upload.single('foto'), (request, response) => __awaiter(void 0, void 0, void 0, function* () {
+    const db = new Database_1.Database(request.getConnection);
     const data_auto = request.body;
     const file = request.file;
     const extension = mime.extension(file.mimetype);
     const path = file.destination + data_auto.patente + '.' + data_auto.marca + '.' + extension;
     fs.renameSync(file.path, path);
     data_auto.foto = path;
-    request.getConnection((err, connection) => {
-        if (err) {
-            throw ('Error en la conexión');
-        }
-        connection.query('INSERT INTO autos SET ?', data_auto, (err, results) => {
-            if (err) {
-                throw ('Error en la consulta');
-            }
-            response.send(`Auto ID número ${results.insertId} agregado con éxito`);
-        });
-    });
-});
-// app.put('/autos', upload.single('foto'), (request: any, response: any) => {
-//   const data_auto = request.body;
-//   const file = request.file;
-//   const extension = mime.extension(file.mimetype);
-//   const path = file.destination + data_auto.patente + '.' + data_auto.marca + '.' + extension;
-//   fs.renameSync(file.path, path);
-//   data_auto.foto = path;
-//   request.getConnection((err: any, connection: any) => {
-//     if (err) {
-//       throw('Error en la conexión');
-//     }
-//     let id: number = 0;
-//     connection.query('SELECT id FROM autos WHERE patente=?', data_auto.patente, (err: any, results: any) => {
-//       if (err) {
-//         throw('Error en la consulta');
-//       }
-//       if (results.length === 0) {
-//         response.send(`No existe registrado un auto con patente ${data_auto.patente}`);
-//       }
-//       else {
-//         id = results[0].id;
-//       }
-//     })
-//     console.log("on");
-//     console.log(id);
-//     console.log("off");
-//     connection.query('UPDATE autos SET ? WHERE id=?', [data_auto, id], (err: any, results: any) => {
-//       if (err) {
-//         throw('Error en la consulta');
-//       }
-//       console.log("Dentro del UPDATE");
-//       console.log(id);
-//       if (results.changedRows === 1) {
-//         response.send(`Auto ID número ${data_auto.id} modificado con éxito`);
-//       }
-//       else {
-//         response.send(`Error, no se pudo modificar`);
-//       }
-//     })
-//   })
-// })
-app.put('/autos', upload.single('foto'), (request, response) => {
+    try {
+        const result = yield db.Agregar(data_auto);
+        const success = result['success'];
+        const message = result['message'];
+        const obj = { success, message };
+        response.send(JSON.stringify(obj));
+    }
+    catch (err) {
+        response.send(err);
+    }
+}));
+// modificar
+app.put('/autos', upload.single('foto'), (request, response) => __awaiter(void 0, void 0, void 0, function* () {
+    const db = new Database_1.Database(request.getConnection);
     const data_auto = request.body;
     if (request.file !== undefined) {
         const file = request.file;
@@ -154,54 +111,32 @@ app.put('/autos', upload.single('foto'), (request, response) => {
         fs.renameSync(file.path, path);
         data_auto.foto = path;
     }
-    request.getConnection((err, connection) => {
-        if (err) {
-            throw ('Error en la conexión');
-        }
-        connection.query('SELECT id FROM autos WHERE patente=?', data_auto.patente, (err, results) => {
-            if (err) {
-                throw ('Error en la consulta');
-            }
-            if (results.length === 0) {
-                response.send(`No existe registrado un auto con patente ${data_auto.patente}`);
-            }
-            else {
-                let id = results[0].id;
-                connection.query('UPDATE autos SET ? WHERE id=?', [data_auto, id], (err, results) => {
-                    if (err) {
-                        throw ('Error en la consulta');
-                    }
-                    if (results.changedRows === 1) {
-                        response.send(`Auto ID número ${id} modificado con éxito`);
-                    }
-                    else {
-                        response.send(`Error, no se pudo modificar`);
-                    }
-                });
-            }
-        });
-    });
-});
-app.delete('/autos/:id', (request, response) => {
-    request.getConnection((err, connection) => {
-        if (err) {
-            throw ('Error');
-        }
-        const id = request.params.id;
-        connection.query('DELETE FROM autos WHERE id=?', id, (err, results) => {
-            if (err) {
-                throw ('Error');
-            }
-            if (results.affectedRows === 1) {
-                response.send("El registro ha sido eliminado exitosamente");
-            }
-            else {
-                response.send("No se ha eliminado ningún registro");
-            }
-        });
-    });
+    try {
+        const result = yield db.Modificar(data_auto);
+        const success = result['success'];
+        const message = result['message'];
+        const obj = { success, message };
+        response.send(JSON.stringify(obj));
+    }
+    catch (err) {
+        response.send(err);
+    }
+}));
+// eliminar
+app.delete('/autos/:id', (request, response) => __awaiter(void 0, void 0, void 0, function* () {
+    const db = new Database_1.Database(request.getConnection);
     const id = request.params.id;
-});
+    try {
+        const result = yield db.Eliminar(id);
+        const success = result['success'];
+        const message = result['message'];
+        const obj = { success, message };
+        response.send(JSON.stringify(obj));
+    }
+    catch (err) {
+        response.send(err);
+    }
+}));
 //#endregion
 //#region REDIRECCIONES
 // tratar 404 NOT FOUND (ultima a la que va a llegar)
